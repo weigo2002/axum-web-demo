@@ -1,4 +1,5 @@
 use routers::create_router;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 use crate::repositories::store::Store;
 
@@ -9,7 +10,16 @@ mod routers;
 
 #[tokio::main]
 async fn main() {
-    let store = Store::new("postgres://postgres:pass1234@localhost:5432/webdev");
+    let store = Store::new("postgres://postgres:pass1234@localhost:5432/rustwebdev").await;
+
+    sqlx::migrate!()
+        .run(&store.clone().connection)
+        .await
+        .expect("Cannot run migrate");
+
+    tracing_subscriber::fmt()
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
     let app = create_router();
     println!("Server starting...");

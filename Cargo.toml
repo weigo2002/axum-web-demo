@@ -18,3 +18,5 @@ sqlx = { version = "0.7.4", features = [
     "migrate",
     "postgres",
 ] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
