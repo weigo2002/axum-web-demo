@@ -1,8 +1,10 @@
 use routers::create_router;
+use tracing::{event, Level};
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use crate::repositories::store::Store;
 
+mod common;
 mod handlers;
 mod models;
 mod repositories;
@@ -21,8 +23,8 @@ async fn main() {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
-    let app = create_router();
-    println!("Server starting...");
+    let app = create_router(store);
+    event!(target:"axum-web-dev", Level::INFO, "Server starting...");
     let listner = tokio::net::TcpListener::bind("0.0.0.0:42001")
         .await
         .unwrap();
