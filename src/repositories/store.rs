@@ -7,6 +7,7 @@ use tracing::event;
 
 use crate::{
     common::error::Error,
+    handlers::question,
     models::question::{NewQuestion, Question, QuestionId},
 };
 
@@ -70,6 +71,26 @@ impl Store {
             .await
         {
             Ok(questions) => Ok(questions),
+            Err(e) => {
+                event!(target:"axum-web-dev", tracing::Level::ERROR, "{:?}", e);
+                Err(Error::DatabaseQueryError)
+            }
+        }
+    }
+
+    pub async fn get_question_byid(&self, id: i64) -> Result<Question, Error> {
+        match sqlx::query("SELECT * from questions where id=$1")
+            .bind(id)
+            .map(|row: PgRow| Question {
+                id: QuestionId(row.get("id")),
+                title: row.get("title"),
+                content: row.get("content"),
+                tags: row.get("tags"),
+            })
+            .fetch_one(&self.connection)
+            .await
+        {
+            Ok(question) => Ok(question),
             Err(e) => {
                 event!(target:"axum-web-dev", tracing::Level::ERROR, "{:?}", e);
                 Err(Error::DatabaseQueryError)

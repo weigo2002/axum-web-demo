@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     Json,
 };
 use tracing::{event, instrument, Level};
@@ -37,6 +37,20 @@ pub async fn get_questions(
     let offset: i64 = pagination.offset.unwrap_or(0);
     let limit: i64 = pagination.limit.unwrap_or(100);
     let res: Vec<Question> = match store.get_questions(offset, limit).await {
+        Ok(res) => res,
+        Err(e) => return Err(e),
+    };
+
+    Ok(Json(res))
+}
+
+#[instrument]
+pub async fn get_question_byid(
+    State(store): State<Store>,
+    Path(id): Path<i64>,
+) -> Result<Json<Question>, Error> {
+    event!(target:"axum-web-demo", Level::INFO, "get question by id");
+    let res = match store.get_question_byid(id).await {
         Ok(res) => res,
         Err(e) => return Err(e),
     };
