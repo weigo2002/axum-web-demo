@@ -1,7 +1,9 @@
+use axum::Json;
 use sqlx::{
     postgres::{PgPoolOptions, PgRow},
     PgPool, Row,
 };
+use tracing::event;
 
 use crate::{
     common::error::Error,
@@ -49,6 +51,27 @@ impl Store {
             Ok(question) => Ok(question),
             Err(e) => {
                 tracing::event!(tracing::Level::ERROR, "{:?}", e);
+                Err(Error::DatabaseQueryError)
+            }
+        }
+    }
+
+    pub async fn get_questions(&self, offset: i64, limit: i64) -> Result<Vec<Question>, Error> {
+        match sqlx::query("SELECT * from questions offset $1 limit $2")
+            .bind(offset)
+            .bind(limit)
+            .map(|row: PgRow| Question {
+                id: QuestionId(row.get("id")),
+                title: row.get("title"),
+                content: row.get("content"),
+                tags: row.get("tags"),
+            })
+            .fetch_all(&self.connection)
+            .await
+        {
+            Ok(questions) => Ok(questions),
+            Err(e) => {
+                event!(target:"axum-web-dev", tracing::Level::ERROR, "{:?}", e);
                 Err(Error::DatabaseQueryError)
             }
         }

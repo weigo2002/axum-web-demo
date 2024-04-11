@@ -4,17 +4,13 @@ use axum::{
 };
 use tower_http::trace::TraceLayer;
 
-use crate::{
-    handlers::{health_check_handler, question::add_question},
-    repositories::store::Store,
-};
+use crate::{handlers::health_check_handler, repositories::store::Store};
 
 pub mod question;
 
 pub fn create_router(store: Store) -> Router {
     Router::new()
         .route("/api/healthcheck", get(health_check_handler))
-        .route("/questions", post(add_question))
+        .merge(question::create_router(store))
         .layer(TraceLayer::new_for_http())
-        .with_state(store)
 }
