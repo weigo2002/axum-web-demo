@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
+    response::IntoResponse,
     Json,
 };
 use tracing::{event, instrument, Level};
@@ -56,4 +57,32 @@ pub async fn get_question_byid(
     };
 
     Ok(Json(res))
+}
+
+#[instrument]
+pub async fn update_question(
+    State(store): State<Store>,
+    Path(id): Path<i64>,
+    Json(question): Json<Question>,
+) -> Result<Json<Question>, Error> {
+    event!(target:"axum-web-dev", Level::INFO, "update question");
+    let res = match store.update_question(question, id).await {
+        Err(e) => return Err(e),
+        Ok(res) => res,
+    };
+
+    Ok(Json(res))
+}
+
+#[instrument]
+pub async fn delete_question(
+    State(store): State<Store>,
+    Path(id): Path<i64>,
+) -> Result<String, Error> {
+    event!(target:"axum-web-dev", Level::INFO, "delete question");
+    if let Err(e) = store.delete_question(id).await {
+        return Err(e);
+    }
+
+    Ok(String::from("Question Deleted"))
 }
