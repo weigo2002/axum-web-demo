@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+pub mod answer;
 pub mod question;
 
 #[derive(Debug, Deserialize, Default)]
