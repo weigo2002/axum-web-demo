@@ -6,6 +6,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{handlers::health_check_handler, repositories::store::Store};
 
+pub mod account;
 pub mod answer;
 pub mod question;
 
@@ -14,5 +15,6 @@ pub fn create_router(store: Store) -> Router {
         .route("/api/healthcheck", get(health_check_handler))
         .merge(question::create_router(store.clone()))
         .merge(answer::create_router(store.clone()))
+        .merge(account::create_router(store.clone()))
         .layer(TraceLayer::new_for_http())
 }

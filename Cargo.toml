@@ -21,3 +21,5 @@ sqlx = { version = "0.7.4", features = [
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 reqwest = "0.12.3"
+rand = "0.8"
+rust-argon2 = "2.1"

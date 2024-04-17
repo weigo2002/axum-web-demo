@@ -8,6 +8,7 @@ use tracing::event;
 use crate::{
     common::error::Error,
     models::{
+        account::Account,
         answer::{Answer, AnswerId, NewAnswer},
         question::{NewQuestion, Question, QuestionId},
     },
@@ -163,6 +164,35 @@ impl Store {
             Ok(answer) => Ok(answer),
             Err(e) => {
                 tracing::event!(tracing::Level::ERROR, "{:?}", e);
+                Err(Error::DatabaseQueryError)
+            }
+        }
+    }
+
+    pub async fn add_account(self, account: Account) -> Result<bool, Error> {
+        match sqlx::query("INSERT INTO accounts (email, password) VALUES($1, $2)")
+            .bind(account.email)
+            .bind(account.password)
+            .execute(&self.connection)
+            .await
+        {
+            Ok(_) => Ok(true),
+            Err(error) => {
+                let err_code = error
+                    .as_database_error()
+                    .unwrap()
+                    .code()
+                    .unwrap()
+                    .parse::<i32>()
+                    .unwrap();
+                let err_message = error.as_database_error().unwrap().message();
+                let err_constraint = error.as_database_error().unwrap().constraint().unwrap();
+                event!(
+                    tracing::Level::ERROR,
+                    code = err_code,
+                    message = err_message,
+                    constraint = err_constraint
+                );
                 Err(Error::DatabaseQueryError)
             }
         }

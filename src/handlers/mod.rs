@@ -1,5 +1,6 @@
 use axum::{response::IntoResponse, Json};
 
+pub mod account;
 pub mod answer;
 pub mod question;
 
