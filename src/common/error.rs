@@ -1,3 +1,4 @@
+use argon2::Error as ArgonError;
 use axum::{response::IntoResponse, Json};
 use reqwest::{Error as ReqwestError, StatusCode};
 use serde_json::json;
@@ -7,8 +8,10 @@ pub enum Error {
     ParseError(std::num::ParseIntError),
     MissingParameters,
     QuestionNotFound,
-    DatabaseQueryError,
+    DatabaseQueryError(sqlx::Error),
     ExternalAPIError(ReqwestError),
+    WrongPassword,
+    ArgonLibraryError(ArgonError),
 }
 
 impl std::fmt::Display for Error {
@@ -18,8 +21,10 @@ impl std::fmt::Display for Error {
                 write!(f, "Cannot parse parameter: {}", err)
             }
             Error::MissingParameters => write!(f, "Missing parameters"),
+            Error::WrongPassword => write!(f, "Wrong password"),
+            Error::ArgonLibraryError(_) => write!(f, "Cannot verify password"),
             Error::QuestionNotFound => write!(f, "Question not found"),
-            Error::DatabaseQueryError => write!(f, "Cannot update, invalid data."),
+            Error::DatabaseQueryError(_) => write!(f, "Cannot update, invalid data."),
             Error::ExternalAPIError(err) => {
                 write!(f, "Cannot execute: {}", err)
             }
@@ -30,10 +35,15 @@ impl std::fmt::Display for Error {
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         let (status, err_msg) = match self {
-            Self::DatabaseQueryError => {
+            Self::DatabaseQueryError(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal server error")
             }
             Self::MissingParameters => (StatusCode::BAD_REQUEST, "Missing parameters"),
+            Self::WrongPassword => (StatusCode::UNAUTHORIZED, "Invalid user name or password"),
+            Self::ArgonLibraryError(_) => {
+                (StatusCode::UNAUTHORIZED, "Invalid user name or password")
+            }
+
             Self::QuestionNotFound => (StatusCode::BAD_REQUEST, "Question not found"),
             Self::ExternalAPIError(_err) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "External API call error")

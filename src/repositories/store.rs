@@ -8,7 +8,7 @@ use tracing::event;
 use crate::{
     common::error::Error,
     models::{
-        account::Account,
+        account::{Account, AccountId},
         answer::{Answer, AnswerId, NewAnswer},
         question::{NewQuestion, Question, QuestionId},
     },
@@ -55,7 +55,7 @@ impl Store {
             Ok(question) => Ok(question),
             Err(e) => {
                 tracing::event!(tracing::Level::ERROR, "{:?}", e);
-                Err(Error::DatabaseQueryError)
+                Err(Error::DatabaseQueryError(e))
             }
         }
     }
@@ -76,7 +76,7 @@ impl Store {
             Ok(questions) => Ok(questions),
             Err(e) => {
                 event!(target:"axum-web-dev", tracing::Level::ERROR, "{:?}", e);
-                Err(Error::DatabaseQueryError)
+                Err(Error::DatabaseQueryError(e))
             }
         }
     }
@@ -96,7 +96,7 @@ impl Store {
             Ok(question) => Ok(question),
             Err(e) => {
                 event!(target:"axum-web-dev", tracing::Level::ERROR, "{:?}", e);
-                Err(Error::DatabaseQueryError)
+                Err(Error::DatabaseQueryError(e))
             }
         }
     }
@@ -128,7 +128,7 @@ impl Store {
             Ok(question) => Ok(question),
             Err(e) => {
                 tracing::event!(tracing::Level::ERROR, "{:?}", e);
-                Err(Error::DatabaseQueryError)
+                Err(Error::DatabaseQueryError(e))
             }
         }
     }
@@ -142,7 +142,7 @@ impl Store {
             Ok(_) => Ok(true),
             Err(e) => {
                 tracing::event!(tracing::Level::ERROR, "{:?}", e);
-                Err(Error::DatabaseQueryError)
+                Err(Error::DatabaseQueryError(e))
             }
         }
     }
@@ -164,7 +164,7 @@ impl Store {
             Ok(answer) => Ok(answer),
             Err(e) => {
                 tracing::event!(tracing::Level::ERROR, "{:?}", e);
-                Err(Error::DatabaseQueryError)
+                Err(Error::DatabaseQueryError(e))
             }
         }
     }
@@ -193,7 +193,26 @@ impl Store {
                     message = err_message,
                     constraint = err_constraint
                 );
-                Err(Error::DatabaseQueryError)
+                Err(Error::DatabaseQueryError(error))
+            }
+        }
+    }
+
+    pub async fn get_account(self, email: String) -> Result<Account, Error> {
+        match sqlx::query("SELECT * from accounts where email = $1")
+            .bind(email)
+            .map(|row: PgRow| Account {
+                id: Some(AccountId(row.get("id"))),
+                email: row.get("email"),
+                password: row.get("password"),
+            })
+            .fetch_one(&self.connection)
+            .await
+        {
+            Ok(account) => Ok(account),
+            Err(error) => {
+                event!(tracing::Level::ERROR, "{:?}", error);
+                Err(Error::DatabaseQueryError(error))
             }
         }
     }
