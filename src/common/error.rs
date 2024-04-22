@@ -12,6 +12,7 @@ pub enum Error {
     ExternalAPIError(ReqwestError),
     WrongPassword,
     ArgonLibraryError(ArgonError),
+    CannotDecryptToken,
 }
 
 impl std::fmt::Display for Error {
@@ -28,6 +29,7 @@ impl std::fmt::Display for Error {
             Error::ExternalAPIError(err) => {
                 write!(f, "Cannot execute: {}", err)
             }
+            Error::CannotDecryptToken => write!(f, "Invalid token"),
         }
     }
 }
@@ -52,6 +54,7 @@ impl IntoResponse for Error {
                 //let e_msg = format!("Cannot parse parameter: {}", err);
                 (StatusCode::BAD_REQUEST, "Parse parameter error")
             }
+            Self::CannotDecryptToken => (StatusCode::UNAUTHORIZED, "Invalid token"),
         };
         (status, Json(json!({"error": err_msg}))).into_response()
     }

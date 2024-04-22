@@ -1,13 +1,20 @@
 use argon2::Config;
-use axum::{extract::State, Json};
+use axum::{
+    body::Body,
+    extract::{Request, State},
+    middleware::Next,
+    response::Response,
+    Json,
+};
 use chrono::Utc;
 use paseto::v2::local_paseto;
 use rand::Rng;
+use reqwest::header;
 use tracing::{event, Level};
 
 use crate::{
     common::error::Error,
-    models::account::{self, Account, AccountId},
+    models::account::{self, Account, AccountId, Session},
     repositories::store::Store,
 };
 
@@ -53,10 +60,44 @@ pub async fn login(
     token
 }
 
+pub async fn auth(mut req: Request<Body>, next: Next) -> Result<Response, Error> {
+    if req.uri().path().ends_with("registration") || req.uri().path().ends_with("login") {
+        return Ok(next.run(req).await);
+    }
+
+    let token = req
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|auth_header| auth_header.to_str().ok());
+    let token = match token {
+        Some(t) => t,
+        None => "",
+    };
+    let session = match verify_token(token.to_string()) {
+        Ok(s) => s,
+        Err(e) => return Err(e),
+    };
+
+    req.extensions_mut().insert(session);
+    Ok(next.run(req).await)
+}
+
 pub fn hash_passowrd(password: &[u8]) -> String {
     let salt = rand::thread_rng().gen::<[u8; 32]>();
     let config = Config::default();
     argon2::hash_encoded(password, &salt, &config).unwrap()
+}
+
+pub fn verify_token(token: String) -> Result<Session, Error> {
+    let token = paseto::tokens::validate_local_token(
+        &token,
+        None,
+        &"RANDOM WORDS WINTER MACINTOSH PC".as_bytes(),
+        &paseto::tokens::TimeBackend::Chrono,
+    )
+    .map_err(|_| Error::CannotDecryptToken)?;
+
+    serde_json::from_value::<Session>(token).map_err(|_| Error::CannotDecryptToken)
 }
 
 fn verify_password(password: &[u8], hash: &str) -> Result<bool, argon2::Error> {
