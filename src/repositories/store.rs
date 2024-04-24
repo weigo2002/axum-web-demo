@@ -216,4 +216,23 @@ impl Store {
             }
         }
     }
+
+    pub async fn is_question_owner(
+        &self,
+        question_id: i64,
+        account_id: &AccountId,
+    ) -> Result<bool, Error> {
+        match sqlx::query("SELECT * from questions where id = $1 and account_id = $2")
+            .bind(question_id)
+            .bind(account_id.0)
+            .fetch_optional(&self.connection)
+            .await
+        {
+            Ok(question) => Ok(question.is_some()),
+            Err(e) => {
+                event!(tracing::Level::ERROR, "{:?}", e);
+                Err(Error::DatabaseQueryError(e))
+            }
+        }
+    }
 }

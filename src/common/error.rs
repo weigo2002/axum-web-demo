@@ -1,3 +1,5 @@
+use std::fmt::write;
+
 use argon2::Error as ArgonError;
 use axum::{response::IntoResponse, Json};
 use reqwest::{Error as ReqwestError, StatusCode};
@@ -11,6 +13,7 @@ pub enum Error {
     DatabaseQueryError(sqlx::Error),
     ExternalAPIError(ReqwestError),
     WrongPassword,
+    Unahthorized,
     ArgonLibraryError(ArgonError),
     CannotDecryptToken,
 }
@@ -30,6 +33,7 @@ impl std::fmt::Display for Error {
                 write!(f, "Cannot execute: {}", err)
             }
             Error::CannotDecryptToken => write!(f, "Invalid token"),
+            Error::Unahthorized => write!(f, "No resource permission"),
         }
     }
 }
@@ -55,6 +59,7 @@ impl IntoResponse for Error {
                 (StatusCode::BAD_REQUEST, "Parse parameter error")
             }
             Self::CannotDecryptToken => (StatusCode::UNAUTHORIZED, "Invalid token"),
+            Self::Unahthorized => (StatusCode::UNAUTHORIZED, "No resource permission"),
         };
         (status, Json(json!({"error": err_msg}))).into_response()
     }

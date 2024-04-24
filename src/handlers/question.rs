@@ -1,13 +1,14 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, Query, Request, State},
     response::IntoResponse,
-    Json,
+    Extension, Json,
 };
 use tracing::{event, instrument, Level};
 
 use crate::{
     common::error::Error,
     models::{
+        account::Session,
         question::{NewQuestion, Question},
         Pagination,
     },
@@ -32,6 +33,7 @@ pub async fn add_question(
 pub async fn get_questions(
     State(store): State<Store>,
     pagination: Option<Query<Pagination>>,
+    Extension(session): Extension<Session>,
 ) -> Result<Json<Vec<Question>>, Error> {
     event!(target:"axum-web-demo", Level::INFO, "get pagination questions");
     let Query(pagination) = pagination.unwrap_or_default();
@@ -49,8 +51,13 @@ pub async fn get_questions(
 pub async fn get_question_byid(
     State(store): State<Store>,
     Path(id): Path<i64>,
+    Extension(session): Extension<Session>,
 ) -> Result<Json<Question>, Error> {
     event!(target:"axum-web-demo", Level::INFO, "get question by id");
+    let account_id = session.account_id;
+    if !store.is_question_owner(id, &account_id).await? {
+        return Err(Error::Unahthorized);
+    }
     let res = match store.get_question_byid(id).await {
         Ok(res) => res,
         Err(e) => return Err(e),
